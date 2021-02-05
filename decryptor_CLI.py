@@ -1,8 +1,6 @@
-#I reccomend disabling full path lengths in Python
+#I reccomend disabling full path lengths in Windows
 
 #Dependencies: pycryptodome and biplist
-
-#To do: check that you need everything imported. Understand some of the class key stuff
 
 import argparse
 import getpass
@@ -86,7 +84,7 @@ class Keybag(object):
                                             self.attrs[b"SALT"],
                                             self.attrs[b"ITER"], 32)
         print('== Passcode key')
-        print(hexlify(passcode_key).decode("utf-8")) #edited
+        print(hexlify(passcode_key).decode("utf-8")) 
 
         for classkey in self.classKeys.values():
             k = classkey[b"WPKY"]
@@ -101,7 +99,7 @@ class Keybag(object):
         ck = self.classKeys[protection_class][b"KEY"]
         if len(persistent_key) != 0x28:
             raise Exception("Invalid key length")
-        return aes_unwrap_key(ck, persistent_key) #substituted AESunwrapfunction
+        return aes_unwrap_key(ck, persistent_key) 
         
 
 def loopTLVBlocks(blob):
@@ -204,7 +202,7 @@ c.execute("""
 results = c.fetchall()
 for item in results:
     fileID, domain, relativePath, file_bplist = item
-    if ':' in relativePath: #APFS allows colons in filenames but Windows does not, so this replaces the colon with !-.
+    if ':' in relativePath: #APFS allows colons in filenames but NTFS does not, so this replaces the colon with !-.
         relativePath = relativePath.replace(':','!-')
     plist = biplist.readPlistFromString(file_bplist)
     file_data = plist['$objects'][plist['$top']['root'].integer]
