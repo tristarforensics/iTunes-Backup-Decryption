@@ -1,7 +1,8 @@
-#IMPORTS
+#I reccomend disabling full path lengths in Python
 
-from __future__ import print_function
-from __future__ import division
+#Dependencies: pycryptodome and biplist
+
+#To do: check that you need everything imported. Understand some of the class key stuff
 
 import argparse
 import getpass
@@ -15,16 +16,15 @@ import struct
 import tempfile
 from binascii import hexlify
 
-import Crypto.Cipher.AES # https://www.dlitz.net/software/pyCrypto/
-import biplist
+import Crypto.Cipher.AES # pip install pycryptodome If you have issues refer to https://pycryptodome.readthedocs.io/en/latest/src/faq.html#why-do-i-get-the-error-no-module-named-crypto-on-windows
+import biplist #pip install biplist
 import hashlib
-from biplist import InvalidPlistException
 from aes_keywrap import aes_unwrap_key
 from pathlib import Path
 
 #CLASSES AND FUNCTIONS
-CLASSKEY_TAGS = [b"CLAS",b"WRAP",b"WPKY", b"KTYP", b"PBKY"]  #UUID
-KEYBAG_TYPES = ["System", "Backup", "Escrow", "OTA (icloud)"]
+CLASSKEY_TAGS = [b"CLAS",b"WRAP",b"WPKY", b"KTYP", b"PBKY"]
+KEYBAG_TYPES = ["System", "Backup", "Escrow", "OTA (icloud)"] #Different Keybag structures which exist. Ours is a Backup
 KEY_TYPES = ["AES", "Curve25519"]
 PROTECTION_CLASSES={
     1:"NSFileProtectionComplete",
@@ -32,7 +32,6 @@ PROTECTION_CLASSES={
     3:"NSFileProtectionCompleteUntilFirstUserAuthentication",
     4:"NSFileProtectionNone",
     5:"NSFileProtectionRecovery?",
-
     6: "kSecAttrAccessibleWhenUnlocked",
     7: "kSecAttrAccessibleAfterFirstUnlock",
     8: "kSecAttrAccessibleAlways",
@@ -51,10 +50,10 @@ class Keybag(object):
         self.deviceKey = None
         self.attrs = {}
         self.classKeys = {}
-        self.KeyBagKeys = None #DATASIGN blob
+        self.KeyBagKeys = None 
         self.parseBinaryBlob(data)
 
-    def parseBinaryBlob(self, data): #This breaks the tags up into a structure. I don't understand exactly how it works at the end but whatever
+    def parseBinaryBlob(self, data): #This breaks the tags up into a structure.
         currentClassKey = None
 
         for tag, data in loopTLVBlocks(data):
@@ -90,11 +89,9 @@ class Keybag(object):
         print(hexlify(passcode_key).decode("utf-8")) #edited
 
         for classkey in self.classKeys.values():
-            #if b"WPKY" not in classkey: Edit: I am removing because all should have wrapped keys I think
-                #continue
             k = classkey[b"WPKY"]
             if classkey[b"WRAP"] & WRAP_PASSCODE:
-                k = aes_unwrap_key(passcode_key, classkey[b"WPKY"]) #Edited with new function. Seems to work
+                k = aes_unwrap_key(passcode_key, classkey[b"WPKY"])
                 if not k:
                     return False
                 classkey[b"KEY"] = k
@@ -105,31 +102,6 @@ class Keybag(object):
         if len(persistent_key) != 0x28:
             raise Exception("Invalid key length")
         return aes_unwrap_key(ck, persistent_key) #substituted AESunwrapfunction
-
-    def printClassKeys(self):
-        print("== Keybag")
-        print("Keybag type: %s keybag (%d)" % (KEYBAG_TYPES[self.type], self.type))
-        print("Keybag version: %d" % self.attrs[b"VERS"])
-        print("Keybag UUID: %s" % hexlify(self.uuid).decode("utf-8"))
-        print("-"*209)
-        print("".join(["Class".ljust(53),
-                    "WRAP".ljust(5),
-                    "Type".ljust(11),
-                    "Key".ljust(65),
-                    "WPKY".ljust(65),
-                    "Public key"]))
-        print("-"*208)
-        for k, ck in self.classKeys.items():
-            if k == 6:print("")
-
-            print("".join(
-                [PROTECTION_CLASSES.get(k).ljust(53),
-                str(ck.get(b"WRAP","")).ljust(5),
-                KEY_TYPES[ck.get(b"KTYP",0)].ljust(11),
-                hexlify(ck.get(b"KEY", b"")).ljust(65).decode("utf-8"), #Edit
-                hexlify(ck.get(b"WPKY", b"")).ljust(65).decode("utf-8"), #Edit
-            ]))
-        print()
         
 
 def loopTLVBlocks(blob):
@@ -142,7 +114,7 @@ def loopTLVBlocks(blob):
         i += 8 + length
 
 
-ZEROIV = b"\x00"*16 #Edit: There was an issue with the iv=ZEROIV. I think it needs to be encoded
+ZEROIV = b"\x00"*16
 def AESdecryptCBC(data, key, iv=ZEROIV, padding=False): 
     if len(data) % 16:
         print("AESdecryptCBC: data length not /16, truncating")
@@ -232,6 +204,8 @@ c.execute("""
 results = c.fetchall()
 for item in results:
     fileID, domain, relativePath, file_bplist = item
+    if ':' in relativePath: #APFS allows colons in filenames but Windows does not, so this replaces the colon with !-.
+        relativePath = relativePath.replace(':','!-')
     plist = biplist.readPlistFromString(file_bplist)
     file_data = plist['$objects'][plist['$top']['root'].integer]
     size = file_data['Size']
