@@ -2,7 +2,7 @@
 Key wrapping and unwrapping as defined in RFC 3394.  
 Also a padding mechanism that was used in openssl at one time.  
 The purpose of this algorithm is to encrypt a key multiple times to add an extra layer of security.
-Written by github user kurtbrose
+Written by GitHub user kurtbrose
 '''
 import struct
 from Crypto.Cipher import AES
